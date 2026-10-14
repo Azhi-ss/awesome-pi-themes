@@ -63,6 +63,11 @@ const requiredColorTokens = [
 ];
 
 const requiredExportTokens = ["pageBg", "cardBg", "infoBg"];
+// pi accepts these with fallbacks, so themes may omit them. Mirrors pi's theme schema
+// (packages/coding-agent/schemas/theme.schema.json); keep in sync when pi adds tokens.
+const optionalColorTokens = ["scrollbarTrack", "scrollbarThumb", "searchMatchBg", "searchMatchText"];
+const allowedColorTokens = new Set([...requiredColorTokens, ...optionalColorTokens]);
+const allowedTopLevelKeys = new Set(["$schema", "name", "appearance", "vars", "colors", "export"]);
 const hexColor = /^#[0-9a-f]{6}$/i;
 const slug = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -149,9 +154,25 @@ describe("pi themes", () => {
         assert.match(value, hexColor, `${theme.name}: vars.${key} must be a 6-digit hex color`);
       }
 
+      for (const key of Object.keys(theme)) {
+        assert.ok(allowedTopLevelKeys.has(key), `${theme.name}: unknown top-level key ${key}`);
+      }
+
       for (const token of requiredColorTokens) {
         assert.ok(Object.hasOwn(theme.colors, token), `${theme.name}: missing colors.${token}`);
-        assertColorReference(theme, token, theme.colors[token]);
+      }
+
+      // pi rejects unknown color tokens, so a theme with one fails to load entirely.
+      for (const token of Object.keys(theme.colors)) {
+        assert.ok(allowedColorTokens.has(token), `${theme.name}: unknown colors.${token}`);
+      }
+
+      for (const [token, value] of Object.entries(theme.colors)) {
+        assertColorReference(theme, token, value);
+      }
+
+      for (const token of Object.keys(theme.export)) {
+        assert.ok(requiredExportTokens.includes(token), `${theme.name}: unknown export.${token}`);
       }
 
       for (const token of requiredExportTokens) {
